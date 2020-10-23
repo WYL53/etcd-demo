@@ -10,7 +10,7 @@ import (
 
 func main() {
 	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{"118.89.22.227:2379"},
+		Endpoints:   []string{"localhost:2379"},
 		DialTimeout: 5 * time.Second,
 	})
 	if err != nil {
@@ -22,19 +22,24 @@ func main() {
 	fmt.Println("connect to etcd success")
 	defer cli.Close()
 
+	KV := clientv3.NewKV(cli)
+
+	Key := "v1"
 	// put
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	Key := "q1mi"
-	_, err = cli.Put(ctx, Key, "dsb")
-	cancel()
+	ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+	_, err = KV.Put(ctx, Key, "dsb")
 	if err != nil {
 		fmt.Printf("put to etcd failed, err:%v\n", err)
 		return
 	}
 	// get
-	ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-	resp, err := cli.Get(ctx, Key)
-	cancel()
+	ctx, _ = context.WithTimeout(context.Background(), 2*time.Second)
+	// go func() {
+	// 	waitTimeout(cancel)
+	// }()
+	resp, err := KV.Get(ctx, Key)
+	// cancel()
+
 	if err != nil {
 		fmt.Printf("get from etcd failed, err:%v\n", err)
 		return
@@ -44,8 +49,9 @@ func main() {
 	}
 
 	//del
+	ctx, _ = context.WithTimeout(context.Background(), 2*time.Second)
 	fmt.Println("start delete")
-	delResp, err := cli.Delete(context.TODO(), Key, clientv3.WithPrevKV())
+	delResp, err := KV.Delete(ctx, Key, clientv3.WithPrevKV())
 	if err != nil {
 		fmt.Printf("del key  failed , err： %v \n", err)
 		return
@@ -56,4 +62,12 @@ func main() {
 		}
 	}
 
+}
+
+func waitTimeout(cancel context.CancelFunc) {
+	select {
+	case <-time.After(5 * time.Second):
+		fmt.Println("太久了，我要 取消操作")
+		cancel()
+	}
 }
